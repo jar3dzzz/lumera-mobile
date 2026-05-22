@@ -1,11 +1,58 @@
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+
+import LoginView from './src/views/LoginView';
+import RegisterView from './src/views/RegisterView';
+import HomeView from './src/views/HomeView';
 
 export default function App() {
+  // Navigation State: 'login' | 'register' | 'home'
+  const [currentView, setCurrentView] = useState('login');
+
+  const handleLoginSuccess = () => {
+    setCurrentView('home');
+  };
+
+  const handleRegisterSuccess = () => {
+    setCurrentView('home');
+  };
+
+  const handleLogout = () => {
+    setCurrentView('login');
+  };
+
+  const navigateToRegister = () => {
+    setCurrentView('register');
+  };
+
+  const navigateToLogin = () => {
+    setCurrentView('login');
+  };
+
   return (
     <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
+      
+      {currentView === 'login' && (
+        <LoginView
+          onLogin={handleLoginSuccess}
+          onNavigateToRegister={navigateToRegister}
+        />
+      )}
+
+      {currentView === 'register' && (
+        <RegisterView
+          onRegister={handleRegisterSuccess}
+          onNavigateToLogin={navigateToLogin}
+        />
+      )}
+
+      {currentView === 'home' && (
+        <HomeView
+          onLogout={handleLogout}
+        />
+      )}
     </View>
   );
 }
@@ -13,8 +60,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#111214',
   },
 });
