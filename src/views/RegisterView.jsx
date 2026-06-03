@@ -10,14 +10,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
-export default function RegisterView({ onRegister, onNavigateToLogin }) {
+export default function RegisterView({ navigation }) {
   const { width } = useWindowDimensions();
   const isWideScreen = width > 768;
 
-  // Form State variables
   const [nombre, setNombre] = useState('');
   const [aPaterno, setAPaterno] = useState('');
   const [aMaterno, setAMaterno] = useState('');
@@ -28,17 +30,43 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Decorative tilted gold logo component
   const TiltedLogo = ({ size = 80, fontSize = 48, tilt = '-8deg' }) => (
     <View style={[styles.tiltedCard, { width: size, height: size, transform: [{ rotate: tilt }] }]}>
       <Text style={[styles.tiltedCardText, { fontSize }]}>A</Text>
     </View>
   );
 
-  const handleRegisterPress = () => {
-    // Navigate to Home view on register press
-    onRegister();
+  const handleRegisterPress = async () => {
+    if (!email || !password || !nombre) {
+      Alert.alert('Error', 'Por favor completa los campos requeridos.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          nombre,
+          apellido_paterno: aPaterno,
+          apellido_materno: aMaterno,
+          genero,
+          telefono,
+          fecha_nacimiento: fechaNacimiento,
+        },
+      },
+    });
+    setLoading(false);
+    if (error) {
+      Alert.alert('Error al registrarse', error.message);
+    } else {
+      Alert.alert(
+        'Éxito',
+        'Cuenta creada. Revisa tu correo para confirmar tu cuenta.',
+      );
+    }
   };
 
   const selectGenero = (option) => {
@@ -54,13 +82,11 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
       >
         <View style={[styles.mainWrapper, isWideScreen ? styles.rowDirection : styles.columnDirection]}>
         
-        {/* Left Side: Scrollable Form Container */}
         <ScrollView
           contentContainerStyle={styles.formScrollContent}
           style={[styles.leftSide, isWideScreen ? { width: '45%', flex: 45 } : { width: '100%', flex: 1 }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Atlas Branding for Mobile (Only visible when stacked) */}
           {!isWideScreen && (
             <View style={styles.mobileHeader}>
               <View style={styles.smallLogoBox}>
@@ -70,7 +96,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
             </View>
           )}
 
-          {/* Desktop Atlas Branding (Only visible on wide screen) */}
           {isWideScreen && (
             <View style={styles.desktopHeader}>
               <View style={styles.smallLogoBox}>
@@ -80,15 +105,12 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
             </View>
           )}
 
-          {/* Title */}
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>Regístrate</Text>
             <Text style={styles.welcomeSubtitle}>Crea una cuenta para comenzar a gestionar tus propiedades</Text>
           </View>
 
-          {/* Form Fields */}
           <View style={styles.formContainer}>
-            {/* Nombre(s) */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>NOMBRE(S)</Text>
               <TextInput
@@ -100,7 +122,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               />
             </View>
 
-            {/* Paternal & Maternal Last Names (Side-by-Side!) */}
             <View style={styles.rowInputs}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
                 <Text style={styles.inputLabel}>A. PATERNO</Text>
@@ -124,7 +145,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               </View>
             </View>
 
-            {/* Género (Custom high-fidelity dropdown style picker) */}
             <View style={[styles.inputGroup, { zIndex: 10 }]}>
               <Text style={styles.inputLabel}>GÉNERO</Text>
               <TouchableOpacity
@@ -158,7 +178,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               )}
             </View>
 
-            {/* Correo Electrónico */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>CORREO ELECTRÓNICO</Text>
               <TextInput
@@ -172,7 +191,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               />
             </View>
 
-            {/* Teléfono (Flag country code selector + input) */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>TELÉFONO</Text>
               <View style={styles.phoneInputWrapper}>
@@ -192,7 +210,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               </View>
             </View>
 
-            {/* Fecha de Nacimiento */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>FECHA DE NACIMIENTO</Text>
               <TextInput
@@ -204,7 +221,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               />
             </View>
 
-            {/* Contraseña */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>CONTRASEÑA</Text>
               <View style={styles.passwordInputWrapper}>
@@ -230,26 +246,28 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
               </View>
             </View>
 
-            {/* Submit Button */}
             <TouchableOpacity
-              style={styles.submitButton}
+              style={[styles.submitButton, loading && { opacity: 0.7 }]}
               onPress={handleRegisterPress}
               activeOpacity={0.8}
+              disabled={loading}
             >
-              <Text style={styles.submitButtonText}>Crear Cuenta</Text>
+              {loading ? (
+                <ActivityIndicator color="#111214" />
+              ) : (
+                <Text style={styles.submitButtonText}>Crear Cuenta</Text>
+              )}
             </TouchableOpacity>
 
-            {/* Navigation Footer */}
             <View style={styles.formFooter}>
               <Text style={styles.footerText}>¿Ya tienes una cuenta? </Text>
-              <TouchableOpacity onPress={onNavigateToLogin} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
                 <Text style={styles.footerLink}>Inicia Sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
 
-        {/* Right Side: Big Brand Showcase Card (Only visible on Desktop/Wide screen) */}
         {isWideScreen ? (
           <View style={styles.rightSide}>
             <View style={styles.brandShowcaseContent}>
@@ -261,7 +279,6 @@ export default function RegisterView({ onRegister, onNavigateToLogin }) {
             </View>
           </View>
         ) : (
-          /* Subtle centered visual banner at the very bottom of the mobile view to retain branding */
           <View style={styles.mobileVisualFooter}>
             <TiltedLogo size={60} fontSize={32} tilt="-6deg" />
             <Text style={styles.mobileSlogan}>ÚNETE A ATLAS</Text>
@@ -287,7 +304,6 @@ const styles = StyleSheet.create({
   columnDirection: {
     flexDirection: 'column',
   },
-  // Left Side (Form)
   leftSide: {
     backgroundColor: '#111214',
     paddingHorizontal: 24,
@@ -380,7 +396,6 @@ const styles = StyleSheet.create({
     height: 48,
     width: '100%',
   },
-  // Custom dropdown styles
   dropdownSelector: {
     backgroundColor: '#18191c',
     borderWidth: 1,
@@ -424,7 +439,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
   },
-  // Phone Input style
   phoneInputWrapper: {
     flexDirection: 'row',
     height: 48,
@@ -501,7 +515,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  // Right Side (Visual Showcase)
   rightSide: {
     flex: 55,
     backgroundColor: '#16171a',
@@ -546,7 +559,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
   },
-  // Mobile Visual Footer
   mobileVisualFooter: {
     alignItems: 'center',
     justifyContent: 'center',

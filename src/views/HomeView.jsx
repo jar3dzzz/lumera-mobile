@@ -11,12 +11,16 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
-export default function HomeView({ onLogout }) {
+export default function HomeView() {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   const { width } = useWindowDimensions();
   const isWideScreen = width > 768;
 
-  // Mock data for the dashboard
   const [selectedSector, setSelectedSector] = useState('Todos');
   const [recentIncidents, setRecentIncidents] = useState([
     { id: 1, title: 'Fuga de Riego - Sector C', type: 'Infraestructura', priority: 'Alta', status: 'En Progreso', time: 'Hace 2 horas' },
@@ -27,7 +31,6 @@ export default function HomeView({ onLogout }) {
 
   const sectors = ['Todos', 'Rancho Norte', 'Valle Este', 'Sector C (Sur)'];
 
-  // Custom Sidebar component for Desktop/Web
   const Sidebar = () => (
     <View style={styles.sidebar}>
       <View style={styles.sidebarBrand}>
@@ -67,7 +70,7 @@ export default function HomeView({ onLogout }) {
       </View>
 
       <View style={styles.sidebarFooter}>
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
           <Ionicons name="log-out-outline" size={20} color="#ff6b6b" style={styles.menuIcon} />
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </TouchableOpacity>
@@ -79,20 +82,15 @@ export default function HomeView({ onLogout }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.layoutWrapper}>
-        {/* Render Sidebar on Wide Screens */}
         {isWideScreen && <Sidebar />}
 
-        {/* Main Content Area */}
         <View style={styles.mainContent}>
-          {/* Top Navbar */}
           <View style={styles.navbar}>
-            {/* Header info */}
             <View>
               <Text style={styles.navbarGreeting}>Hola, Administrador</Text>
               <Text style={styles.navbarSubtitle}>Viernes, 22 de Mayo de 2026</Text>
             </View>
 
-            {/* Icons row / Logout for mobile */}
             <View style={styles.navbarActions}>
               <TouchableOpacity style={styles.iconActionButton} activeOpacity={0.7}>
                 <Ionicons name="notifications-outline" size={22} color="#ffffff" />
@@ -100,19 +98,17 @@ export default function HomeView({ onLogout }) {
               </TouchableOpacity>
               
               {!isWideScreen && (
-                <TouchableOpacity style={styles.logoutIconButton} onPress={onLogout} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.logoutIconButton} onPress={handleLogout} activeOpacity={0.7}>
                   <Ionicons name="log-out-outline" size={22} color="#ff6b6b" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          {/* Scrollable Dashboard Elements */}
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Weather & Agricultural Status Banner */}
             <View style={styles.weatherBanner}>
               <View style={styles.weatherInfo}>
                 <Ionicons name="sunny" size={32} color="#d9ab55" />
@@ -127,7 +123,6 @@ export default function HomeView({ onLogout }) {
               </View>
             </View>
 
-            {/* Filter sectors */}
             <View style={styles.filtersSection}>
               <Text style={styles.sectionTitle}>Sectores Agrícolas</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sectorChipsRow}>
@@ -146,7 +141,6 @@ export default function HomeView({ onLogout }) {
               </ScrollView>
             </View>
 
-            {/* Stats Grid */}
             <View style={styles.statsGrid}>
               <View style={[styles.statsCard, { borderLeftColor: '#d9ab55' }]}>
                 <View style={styles.statsCardHeader}>
@@ -176,10 +170,8 @@ export default function HomeView({ onLogout }) {
               </View>
             </View>
 
-            {/* Dashboard Content split (Quick Actions and Recent Tickets) */}
             <View style={[styles.contentSplit, isWideScreen ? styles.rowDirection : styles.columnDirection]}>
               
-              {/* Left Column: Recent Incidents */}
               <View style={[styles.contentColumn, { flex: 3, marginRight: isWideScreen ? 20 : 0 }]}>
                 <View style={styles.columnHeader}>
                   <Text style={styles.sectionTitle}>Últimas Incidencias</Text>
@@ -222,7 +214,6 @@ export default function HomeView({ onLogout }) {
                 ))}
               </View>
 
-              {/* Right Column: Quick Actions & Operations */}
               <View style={[styles.contentColumn, { flex: 2, marginTop: isWideScreen ? 0 : 24 }]}>
                 <Text style={styles.sectionTitle}>Operaciones Rápidas</Text>
                 
@@ -260,7 +251,6 @@ export default function HomeView({ onLogout }) {
             </View>
           </ScrollView>
 
-          {/* Bottom Navigation for Mobile (Only visible when stacked) */}
           {!isWideScreen && (
             <View style={styles.mobileTabBar}>
               <TouchableOpacity style={styles.tabItemActive}>
@@ -288,6 +278,8 @@ export default function HomeView({ onLogout }) {
   );
 }
 
+//estilos temporales, los estilos seran modificados en un archivo separado al implementar los mocks
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -303,7 +295,6 @@ const styles = StyleSheet.create({
   columnDirection: {
     flexDirection: 'column',
   },
-  // Sidebar (Desktop Mode)
   sidebar: {
     width: 260,
     backgroundColor: '#16171a',
@@ -409,7 +400,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  // Main Content Space
   mainContent: {
     flex: 1,
     backgroundColor: '#111214',
@@ -466,10 +456,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 12,
   },
-  // Scrollable Dashboard Elements
   scrollContent: {
     padding: 24,
-    paddingBottom: 80, // Allow space for bottom tab bar on mobile
+    paddingBottom: 80,
   },
   weatherBanner: {
     backgroundColor: '#16171a',
@@ -518,7 +507,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  // Sectors Filter Chips
   filtersSection: {
     marginBottom: 24,
   },
@@ -553,7 +541,6 @@ const styles = StyleSheet.create({
     color: '#111214',
     fontWeight: 'bold',
   },
-  // Stats Grid
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -593,7 +580,6 @@ const styles = StyleSheet.create({
     color: '#5a5e66',
     fontSize: 11,
   },
-  // Content Split layout
   contentSplit: {
     flex: 1,
   },
@@ -679,7 +665,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
-  // Actions Grid
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -710,7 +695,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  // Mobile Bottom Tab Bar
   mobileTabBar: {
     position: 'absolute',
     bottom: 0,

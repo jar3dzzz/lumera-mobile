@@ -10,27 +10,38 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
-export default function LoginView({ onLogin, onNavigateToRegister }) {
+export default function LoginView({ navigation }) {
   const { width, height } = useWindowDimensions();
   const isWideScreen = width > 768;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Decorative tilted gold logo component
   const TiltedLogo = ({ size = 80, fontSize = 48, tilt = '-8deg' }) => (
     <View style={[styles.tiltedCard, { width: size, height: size, transform: [{ rotate: tilt }] }]}>
       <Text style={[styles.tiltedCardText, { fontSize }]}>A</Text>
     </View>
   );
 
-  const handleLoginPress = () => {
-    // Navigate to Home view on Iniciar Sesión press
-    onLogin();
+  const handleLoginPress = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Por favor ingresa tu correo y contraseña.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) {
+      Alert.alert('Error al iniciar sesión', error.message);
+    }
   };
 
   return (
@@ -41,7 +52,6 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
       >
         <View style={[styles.mainWrapper, isWideScreen ? styles.rowDirection : styles.columnDirection]}>
         
-        {/* Left Side: Form Container */}
         <ScrollView
           contentContainerStyle={[
             styles.formScrollContent,
@@ -49,7 +59,6 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
           ]}
           style={[styles.leftSide, isWideScreen ? { width: '45%', flex: 45 } : { width: '100%', flex: 1 }]}
         >
-          {/* Header Atlas Branding for Mobile (Only visible when stacked) */}
           {!isWideScreen && (
             <View style={styles.mobileHeader}>
               <View style={styles.smallLogoBox}>
@@ -59,7 +68,6 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
             </View>
           )}
 
-          {/* Desktop Atlas Branding (Only visible on wide screen) */}
           {isWideScreen && (
             <View style={styles.desktopHeader}>
               <View style={styles.smallLogoBox}>
@@ -69,15 +77,12 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
             </View>
           )}
 
-          {/* Welcome Text */}
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>Bienvenido</Text>
             <Text style={styles.welcomeSubtitle}>Inicia sesión en tu cuenta para continuar</Text>
           </View>
 
-          {/* Form Fields */}
           <View style={styles.formContainer}>
-            {/* Email Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>CORREO ELECTRÓNICO</Text>
               <TextInput
@@ -91,7 +96,6 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
               />
             </View>
 
-            {/* Password Field */}
             <View style={styles.inputGroup}>
               <View style={styles.passwordLabelRow}>
                 <Text style={styles.inputLabel}>CONTRASEÑA</Text>
@@ -122,26 +126,28 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
               </View>
             </View>
 
-            {/* Submit Button */}
             <TouchableOpacity
-              style={styles.submitButton}
+              style={[styles.submitButton, loading && { opacity: 0.7 }]}
               onPress={handleLoginPress}
               activeOpacity={0.8}
+              disabled={loading}
             >
-              <Text style={styles.submitButtonText}>Iniciar Sesión</Text>
+              {loading ? (
+                <ActivityIndicator color="#111214" />
+              ) : (
+                <Text style={styles.submitButtonText}>Iniciar Sesión</Text>
+              )}
             </TouchableOpacity>
 
-            {/* Navigation Footer */}
             <View style={styles.formFooter}>
               <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-              <TouchableOpacity onPress={onNavigateToRegister} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
                 <Text style={styles.footerLink}>Regístrate</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
 
-        {/* Right Side: Big Brand Showcase Card (Only visible on Desktop, or a stylized background section on mobile if we choose, but let's strictly mimic the screenshot split layout) */}
         {isWideScreen ? (
           <View style={styles.rightSide}>
             <View style={styles.brandShowcaseContent}>
@@ -153,7 +159,6 @@ export default function LoginView({ onLogin, onNavigateToRegister }) {
             </View>
           </View>
         ) : (
-          /* Subtle centered visual banner at the very bottom of the mobile view to retain branding */
           <View style={styles.mobileVisualFooter}>
             <TiltedLogo size={60} fontSize={32} tilt="-6deg" />
             <Text style={styles.mobileSlogan}>ATLAS MANAGEMENT</Text>
@@ -179,7 +184,6 @@ const styles = StyleSheet.create({
   columnDirection: {
     flexDirection: 'column',
   },
-  // Left Side (Form)
   leftSide: {
     backgroundColor: '#111214',
     paddingHorizontal: 24,
@@ -210,7 +214,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
-    // Subtle tilt for the small logo too
     transform: [{ rotate: '-4deg' }],
   },
   smallLogoText: {
@@ -297,7 +300,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
-    // Premium shadow/glow
     shadowColor: '#d9ab55',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -323,7 +325,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  // Right Side (Visual Showcase)
   rightSide: {
     flex: 55,
     backgroundColor: '#16171a',
@@ -368,7 +369,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
   },
-  // Mobile Visual Footer
   mobileVisualFooter: {
     alignItems: 'center',
     justifyContent: 'center',
