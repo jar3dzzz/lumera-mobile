@@ -4,9 +4,9 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthProvider';
 
-import LoginView from '../views/LoginView';
-import RegisterView from '../views/RegisterView';
-import HomeView from '../views/HomeView';
+import LoginView from '../views/LoginView/LoginView';
+import RegisterView from '../views/RegisterView/RegisterView';
+import HomeView from '../views/HomeView/HomeView';
 
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
