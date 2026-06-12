@@ -3,9 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthProvider';
-
-import LoginView from '../views/LoginView/LoginView';
-import RegisterView from '../views/RegisterView/RegisterView';
+import AuthView from '../views/AuthView/AuthView';
 import HomeView from '../views/HomeView/HomeView';
 
 const AuthStack = createNativeStackNavigator();
@@ -34,8 +32,7 @@ function AuthNavigator() {
         contentStyle: { backgroundColor: '#111214' },
       }}
     >
-      <AuthStack.Screen name="Login" component={LoginView} />
-      <AuthStack.Screen name="Register" component={RegisterView} />
+      <AuthStack.Screen name="Auth" component={AuthView} />
     </AuthStack.Navigator>
   );
 }
