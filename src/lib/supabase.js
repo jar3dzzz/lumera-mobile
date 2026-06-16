@@ -2,7 +2,6 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 
-// Secure storage adapter for Supabase session persistence
 const ExpoSecureStoreAdapter = {
   getItem: (key) => SecureStore.getItemAsync(key),
   setItem: (key, value) => SecureStore.setItemAsync(key, value),
@@ -142,8 +141,9 @@ if (USE_MOCK) {
   supabaseClient = {
     auth: mockAuth,
   };
-} else {
-  console.log('[Supabase] Running in REAL session mode');
+}
+
+/*
   const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -162,7 +162,7 @@ if (USE_MOCK) {
       detectSessionInUrl: false,
     },
   });
-}
+*/
 
 export const supabase = supabaseClient;
 
