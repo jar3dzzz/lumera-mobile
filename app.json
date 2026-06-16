@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "atlas-mobile",
-    "slug": "atlas-mobile",
+    "name": "lumera-mobile",
+    "slug": "lumera-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
