@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated } from 'react-native';
-import { LogInInterface } from '../../../interfaces/AuthInterfaces';
+import { Auth } from '../../../interfaces/AuthInterfaces';
+import { Core } from '../../../interfaces/CoreInterfaces';
+import { authService } from '../../../services/AuthServices/AuthService';
+import { coreService } from '../../../services/CoreServices/CoreService';
+import { calculatePasswordSecureLevel } from '../../../utils/passwordUtils';
+import { maskPhone, sanitizePhoneDigits, validatePhone } from '../../../utils/phoneUtils';
+import { SupportContactType, getSupportContactAlert } from '../../../utils/supportUtils';
+import { getOtpNextPage, sanitizeOtpInput, validateLoginPassword, validateNewPasswordForm, validateOtpCode } from '../../../utils/validationUtils';
 
 // Page index mapping:
 // 0 = P1: Phone entry
@@ -12,8 +19,6 @@ import { LogInInterface } from '../../../interfaces/AuthInterfaces';
 // 6 = P7: Choose organization
 
 export type LoginPage = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-export type OrganizationId = 'amanecer' | 'robles' | 'isidro';
-export type SupportContactType = 'whatsapp' | 'call' | 'email';
 
 export const PAGE_LABELS: Record<number, string> = {
   0: 'inicio de sesión',
@@ -25,148 +30,322 @@ export const PAGE_LABELS: Record<number, string> = {
   6: 'elegir organización',
 };
 
-export const PHONE_REGEX = new RegExp(
-  '^[\\+]?[(]?[0-9]{3}[)]?[-\\s\\.]?[0-9]{3}[-\\s\\.]?[0-9]{4,6}$'
-);
-
 export const OTP_TIMER_SECONDS = 30;
 
-export function maskPhone(num: string): string {
-  if (!num) return '';
-  const digits = num.replace(/\s+/g, '');
-  if (digits.length >= 8) {
-    const end = digits.slice(-4);
-    const prefix = digits.startsWith('+') ? digits.slice(0, 6) : digits.slice(0, 2);
-    return `${prefix} •••• ${end}`;
-  }
-  return num;
+function getApiErrorMessage(err: any, fallback: string): string {
+  const apiError = err.response?.data as Auth.ApiErrorResponse;
+  return apiError?.error?.message || err.message || fallback;
 }
 
-export function sanitizePhoneDigits(phone: string): string {
-  return phone.replace(/[^0-9]/g, '');
-}
+// --- DECOUPLED LOGIC FUNCTIONS (EXTRACTED OUTSIDE HOOK) ---
 
-export function sanitizeOtpInput(text: string): string {
-  return text.replace(/[^0-9]/g, '');
-}
+export async function performLoadUserOrganizations(
+  setOrganizations: (orgs: Core.Organization[]) => void,
+  setSelectedOrg: (orgId: string) => void,
+  setLoading: (loading: boolean) => void
+) {
+  setLoading(true);
+  try {
+    // REAL API CALL:
+    // const response = await coreService.getUserOrganizations();
+    // const orgList = response.data;
 
+    // MOCK RESPONSE:
+    const orgList: Core.Organization[] = [
+      { org_id: 'org_amanecer', org_name: 'Rancho El Amanecer', role: 'Administrador' },
+      { org_id: 'org_robles', org_name: 'Ganadera Los Robles', role: 'Supervisor' },
+      { org_id: 'org_isidro', org_name: 'Unidad San Isidro', role: 'Trabajador' }
+    ];
 
-
-export function calculatePasswordSecureLevel(password: string): number {
-  if (!password) return 0;
-
-  let score = 0;
-  if (password.length >= 8) score += 1;
-  if (/[A-Z]/.test(password)) score += 1;
-  if (/[0-9]/.test(password)) score += 1;
-  if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-  return score;
-}
-
-export function getStrengthLabelAndColor(passwordSecureLevel: number): {
-  label: string;
-  color: string;
-} {
-  switch (passwordSecureLevel) {
-    case 0:
-      return { label: '', color: 'rgba(255,255,255,0.4)' };
-    case 1:
-      return { label: 'Contraseña muy débil', color: '#a13d2d' };
-    case 2:
-      return { label: 'Contraseña regular', color: '#F3C83A' };
-    case 3:
-      return { label: 'Contraseña segura', color: '#7CB842' };
-    case 4:
-    default:
-      return { label: 'Contraseña muy segura', color: '#398426' };
+    setOrganizations(orgList);
+    if (orgList.length > 0) {
+      setSelectedOrg(orgList[0].org_id);
+    }
+  } catch (err: any) {
+    Alert.alert('Error', err.message || 'Error al obtener organizaciones');
+  } finally {
+    setLoading(false);
   }
 }
 
-export function validatePhone(phone: string): { isValid: boolean; error: string } {
-  if (!PHONE_REGEX.test(phone)) {
-    return { isValid: false, error: 'Ingresa un número de teléfono válido.' };
+export async function performP1Continue(
+  phone: string,
+  setPhone: (phone: string) => void,
+  setPhoneError: (err: string) => void,
+  setLoading: (loading: boolean) => void,
+  setIsLoginFlow: (val: boolean) => void,
+  setIsResetFlow: (val: boolean) => void,
+  transitionToPage: (page: number) => void
+) {
+  const phoneValidation = validatePhone(phone);
+  if (!phoneValidation.isValid) {
+    setPhoneError(phoneValidation.error);
+    return;
   }
-  return { isValid: true, error: '' };
+
+  setPhoneError('');
+  setLoading(true);
+
+  try {
+    const response = await authService.checkPhoneExistence(phone);
+    const { state, nextAction, phone: normalizedPhone } = response.data;
+
+    if (normalizedPhone) {
+      setPhone(normalizedPhone);
+    }
+
+    if (state === 'not_found') {
+      setIsLoginFlow(true);
+      setIsResetFlow(false);
+      transitionToPage(1); // Page 1: Phone not registered
+    } else if (state === 'pending_otp' || nextAction === 'verify_code') {
+      setIsLoginFlow(false);
+      setIsResetFlow(false);
+      transitionToPage(3); // Go to OTP verification
+    } else if (state === 'registered' || nextAction === 'enter_password') {
+      setIsLoginFlow(true);
+      setIsResetFlow(false);
+      transitionToPage(2); // Page 2: Enter password
+    } else {
+      // Fallback
+      setIsLoginFlow(true);
+      setIsResetFlow(false);
+      transitionToPage(1);
+    }
+  } catch (err: any) {
+    setPhoneError(getApiErrorMessage(err, 'Error al validar teléfono'));
+  } finally {
+    setLoading(false);
+  }
 }
 
-export function getPhoneFlowRoute(sanitizedPhone: string): {
-  nextPage: LoginPage;
-  isLoginFlow: boolean;
-} {
-  if (sanitizedPhone.endsWith('0000')) {
-    return { nextPage: 1, isLoginFlow: true };
+export async function performP3Submit(
+  phone: string,
+  password: string,
+  setPasswordError: (err: string) => void,
+  setLoading: (loading: boolean) => void,
+  setIsLoginFlow: (val: boolean) => void,
+  transitionToPage: (page: number) => void
+) {
+  const passwordValidation = validateLoginPassword(password);
+  if (!passwordValidation.isValid) {
+    setPasswordError(passwordValidation.error);
+    return;
   }
-  if (sanitizedPhone.endsWith('1111')) {
-    return { nextPage: 3, isLoginFlow: false };
+
+  if (password !== 'Contrasena2006.') {
+    setPasswordError('Contraseña incorrecta (MOCK). Usa Contrasena2006.');
+    return;
   }
-  return { nextPage: 2, isLoginFlow: true };
+
+  setPasswordError('');
+  setLoading(true);
+
+  try {
+    await authService.passwordLogin(phone, password);
+    setIsLoginFlow(true);
+    transitionToPage(6);
+  } catch (err: any) {
+    setPasswordError(getApiErrorMessage(err, 'Contraseña incorrecta'));
+  } finally {
+    setLoading(false);
+  }
 }
 
-export function validateLoginPassword(password: string): { isValid: boolean; error: string } {
-  if (!password) {
-    return { isValid: false, error: 'Por favor ingresa tu contraseña.' };
+export async function performP4Verify(
+  phone: string,
+  otpCode: string,
+  isResetFlow: boolean,
+  isLoginFlow: boolean,
+  setOtpError: (err: string) => void,
+  setLoading: (loading: boolean) => void,
+  transitionToPage: (page: number) => void
+) {
+  const otpValidation = validateOtpCode(otpCode);
+  if (!otpValidation.isValid) {
+    setOtpError(otpValidation.error);
+    return;
   }
-  return { isValid: true, error: '' };
-}
 
-export function validateOtpCode(otpCode: string): { isValid: boolean; error: string } {
-  if (otpCode.length !== 6) {
-    return { isValid: false, error: 'Ingresa el código de 6 dígitos.' };
+  if (otpCode !== '123456') {
+    setOtpError('Código incorrecto (MOCK). Usa 123456');
+    return;
   }
-  return { isValid: true, error: '' };
+
+  setOtpError('');
+  setLoading(true);
+
+  try {
+    const response = await authService.verifyCode(phone, otpCode);
+    const { phoneVerified, passwordRequired, nextAction } = response.data;
+
+    if (phoneVerified && (passwordRequired || nextAction === 'set_password')) {
+      transitionToPage(4);
+    } else if (phoneVerified) {
+      transitionToPage(getOtpNextPage(isLoginFlow));
+    } else {
+      setOtpError('No se pudo verificar el código.');
+    }
+  } catch (err: any) {
+    setOtpError(getApiErrorMessage(err, 'Error al verificar código'));
+  } finally {
+    setLoading(false);
+  }
 }
 
-export function getOtpNextPage(isLoginFlow: boolean): LoginPage {
-  return isLoginFlow ? 6 : 4;
-}
-
-export function validateNewPasswordForm(
+export async function performP5Submit(
+  phone: string,
+  otpCode: string,
   newPassword: string,
-  confirmPassword: string
-): {
-  isValid: boolean;
-  newPasswordError: string;
-  confirmPasswordError: string;
-} {
-  const isNewPasswordInvalid =
-    newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword);
-  const isConfirmPasswordInvalid = newPassword !== confirmPassword;
+  confirmPassword: string,
+  isResetFlow: boolean,
+  setNewPasswordError: (err: string) => void,
+  setConfirmPasswordError: (err: string) => void,
+  setLoading: (loading: boolean) => void,
+  setPassword: (pwd: string) => void,
+  setNewPassword: (pwd: string) => void,
+  setConfirmPassword: (pwd: string) => void,
+  setOtpCode: (code: string) => void,
+  transitionToPage: (page: number) => void
+) {
+  const validation = validateNewPasswordForm(newPassword, confirmPassword);
+  setNewPasswordError(validation.newPasswordError);
+  setConfirmPasswordError(validation.confirmPasswordError);
 
-  return {
-    isValid: !isNewPasswordInvalid && !isConfirmPasswordInvalid,
-    newPasswordError: isNewPasswordInvalid
-      ? 'Mínimo 8 caracteres, una mayúscula y un número.'
-      : '',
-    confirmPasswordError: isConfirmPasswordInvalid ? 'Las contraseñas no coinciden.' : '',
-  };
-}
+  if (!validation.isValid) {
+    return;
+  }
 
-export function getSupportContactAlert(type: SupportContactType): {
-  title: string;
-  message: string;
-} {
-  switch (type) {
-    case 'whatsapp':
-      return {
-        title: 'WhatsApp Soporte',
-        message: 'Abriendo chat de WhatsApp con soporte técnico (+52 55 1234 5678)...',
-      };
-    case 'call':
-      return {
-        title: 'Llamar a soporte',
-        message: 'Iniciando llamada telefónica al 800-LUMERA-AGRO (Lun-Vie 9:00 - 18:00)...',
-      };
-    case 'email':
-      return {
-        title: 'Enviar correo',
-        message: 'Abriendo cliente de correo hacia soporte@lumera.mx...',
-      };
+  setLoading(true);
+  try {
+    await authService.setPassword(phone, otpCode, newPassword);
+
+    const savedPassword = newPassword;
+    const nextPage = 6;
+
+    Alert.alert(
+      'Éxito',
+      isResetFlow
+        ? 'Tu contraseña ha sido restablecida exitosamente.'
+        : 'Tu contraseña ha sido creada exitosamente.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setPassword(savedPassword);
+            setNewPassword('');
+            setConfirmPassword('');
+            setOtpCode('');
+            transitionToPage(nextPage);
+          },
+        },
+      ]
+    );
+  } catch (err: any) {
+    Alert.alert('Error', getApiErrorMessage(err, 'Error al guardar la contraseña'));
+  } finally {
+    setLoading(false);
   }
 }
+
+export async function performOrgSubmit(
+  phone: string,
+  password: string,
+  selectedOrg: string,
+  setLoading: (loading: boolean) => void,
+  onSubmit: (data: Auth.LogInInterface) => Promise<void> | void
+) {
+  setLoading(true);
+  try {
+    // REAL API CALL:
+    // const response = await coreService.selectOrganization(selectedOrg);
+    // const { access_token, active_org } = response.data;
+
+    // MOCK RESPONSE:
+    const mockSelectResponse = {
+      access_token: 'mock-org-jwt-token-sprint2',
+      active_org: {
+        org_id: selectedOrg,
+        org_name: selectedOrg === 'org_amanecer' ? 'Rancho El Amanecer' : (selectedOrg === 'org_robles' ? 'Ganadera Los Robles' : 'Unidad San Isidro'),
+        role: selectedOrg === 'org_amanecer' ? 'Administrador' : (selectedOrg === 'org_robles' ? 'Supervisor' : 'Trabajador')
+      }
+    };
+
+    await onSubmit({ phone, password });
+  } catch (err: any) {
+    Alert.alert('Error', err.message || 'Error al seleccionar la organización');
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function performResendOtp(
+  phone: string,
+  isResetFlow: boolean,
+  setTimerSeconds: (secs: number) => void,
+  setLoading: (loading: boolean) => void
+) {
+  setLoading(true);
+  try {
+    await authService.checkPhoneExistence(phone);
+
+    setTimerSeconds(OTP_TIMER_SECONDS);
+    Alert.alert('Reenviado', 'Se ha reenviado un nuevo código a tu número.');
+  } catch (err: any) {
+    Alert.alert('Error', getApiErrorMessage(err, 'Error al reenviar el código'));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function performStartInvitationFlow(
+  phone: string,
+  setIsLoginFlow: (val: boolean) => void,
+  setIsResetFlow: (val: boolean) => void,
+  setLoading: (loading: boolean) => void,
+  transitionToPage: (page: number) => void
+) {
+  setIsLoginFlow(false);
+  setIsResetFlow(false);
+  setLoading(true);
+  try {
+    // REAL API CALL:
+    // await authService.sendOtp({ phone, reason: 'invitation' });
+
+    transitionToPage(3);
+  } catch (err: any) {
+    Alert.alert('Error', err.message || 'Error al enviar invitación');
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function performStartForgotPasswordFlow(
+  phone: string,
+  setIsLoginFlow: (val: boolean) => void,
+  setIsResetFlow: (val: boolean) => void,
+  setLoading: (loading: boolean) => void,
+  transitionToPage: (page: number) => void
+) {
+  setIsLoginFlow(false);
+  setIsResetFlow(true);
+  setLoading(true);
+  try {
+    // REAL API CALL:
+    // await authService.sendOtp({ phone, reason: 'forgot_password' });
+
+    transitionToPage(3);
+  } catch (err: any) {
+    Alert.alert('Error', err.message || 'Error al enviar OTP de recuperación');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// --- HOOK DEFINITION ---
 
 interface UseLoginFormLogicParams {
-  onSubmit: (data: LogInInterface) => Promise<void> | void;
+  onSubmit: (data: Auth.LogInInterface) => Promise<void> | void;
 }
 
 export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
@@ -187,7 +366,8 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
 
   const [timerSeconds, setTimerSeconds] = useState(OTP_TIMER_SECONDS);
   const [passwordSecureLevel, setPasswordSecureLevel] = useState(0);
-  const [selectedOrg, setSelectedOrg] = useState<OrganizationId>('amanecer');
+  const [organizations, setOrganizations] = useState<Core.Organization[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<string>('');
   const [isLoginFlow, setIsLoginFlow] = useState(true);
 
   const [phoneError, setPhoneError] = useState('');
@@ -232,7 +412,7 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
       setShowPassword(false);
     }
 
-    if (nextPage !== 3) {
+    if (nextPage !== 3 && nextPage !== 4) {
       setOtpCode('');
       setOtpError('');
     }
@@ -272,6 +452,12 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
       resetOtherPagesState(nextPage);
       setPage(nextPage as LoginPage);
       slideAnim.setValue(isForward ? 20 : -20);
+
+      // Trigger organization loading if going to page 6
+      if (nextPage === 6) {
+        performLoadUserOrganizations(setOrganizations, setSelectedOrg, setLoading);
+      }
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -288,43 +474,38 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
   };
 
   const handleP1Continue = () => {
-    const phoneValidation = validatePhone(phone);
-    if (!phoneValidation.isValid) {
-      setPhoneError(phoneValidation.error);
-      return;
-    }
-    setPhoneError('');
-
-    const sanitized = sanitizePhoneDigits(phone);
-    const route = getPhoneFlowRoute(sanitized);
-    setIsLoginFlow(route.isLoginFlow);
-    setIsResetFlow(false);
-    transitionToPage(route.nextPage);
+    performP1Continue(
+      phone,
+      setPhone,
+      setPhoneError,
+      setLoading,
+      setIsLoginFlow,
+      setIsResetFlow,
+      transitionToPage
+    );
   };
 
-  const handleP3Submit = async () => {
-    const passwordValidation = validateLoginPassword(password);
-    if (!passwordValidation.isValid) {
-      setPasswordError(passwordValidation.error);
-      return;
-    }
-    setPasswordError('');
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setIsLoginFlow(true);
-      transitionToPage(3);
-    }, 800);
+  const handleP3Submit = () => {
+    performP3Submit(
+      phone,
+      password,
+      setPasswordError,
+      setLoading,
+      setIsLoginFlow,
+      transitionToPage
+    );
   };
 
   const handleP4Verify = () => {
-    const otpValidation = validateOtpCode(otpCode);
-    if (!otpValidation.isValid) {
-      setOtpError(otpValidation.error);
-      return;
-    }
-    setOtpError('');
-    transitionToPage(getOtpNextPage(isLoginFlow));
+    performP4Verify(
+      phone,
+      otpCode,
+      isResetFlow,
+      isLoginFlow,
+      setOtpError,
+      setLoading,
+      transitionToPage
+    );
   };
 
   const handleNewPasswordChange = (value: string) => {
@@ -332,43 +513,25 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
   };
 
   const handleP5Submit = () => {
-    const validation = validateNewPasswordForm(newPassword, confirmPassword);
-    setNewPasswordError(validation.newPasswordError);
-    setConfirmPasswordError(validation.confirmPasswordError);
-
-    if (!validation.isValid) {
-      return;
-    }
-
-    const savedPassword = newPassword;
-
-    Alert.alert(
-      'Éxito',
-      isResetFlow
-        ? 'Tu contraseña ha sido restablecida exitosamente.'
-        : 'Tu contraseña ha sido creada exitosamente.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setPassword(savedPassword);
-            setNewPassword('');
-            setConfirmPassword('');
-            setOtpCode('');
-            transitionToPage(6);
-          },
-        },
-      ]
+    performP5Submit(
+      phone,
+      otpCode,
+      newPassword,
+      confirmPassword,
+      isResetFlow,
+      setNewPasswordError,
+      setConfirmPasswordError,
+      setLoading,
+      setPassword,
+      setNewPassword,
+      setConfirmPassword,
+      setOtpCode,
+      transitionToPage
     );
   };
 
-  const handleOrgSubmit = async () => {
-    setLoading(true);
-    try {
-      await onSubmit({ phone, password });
-    } finally {
-      setLoading(false);
-    }
+  const handleOrgSubmit = () => {
+    performOrgSubmit(phone, password, selectedOrg, setLoading, onSubmit);
   };
 
   const handleSupportContact = (type: SupportContactType) => {
@@ -377,20 +540,15 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
   };
 
   const handleResendOtp = () => {
-    setTimerSeconds(OTP_TIMER_SECONDS);
-    Alert.alert('Reenviado', 'Se ha reenviado un nuevo código a tu número.');
+    performResendOtp(phone, isResetFlow, setTimerSeconds, setLoading);
   };
 
   const startInvitationFlow = () => {
-    setIsLoginFlow(false);
-    setIsResetFlow(false);
-    transitionToPage(3);
+    performStartInvitationFlow(phone, setIsLoginFlow, setIsResetFlow, setLoading, transitionToPage);
   };
 
   const startForgotPasswordFlow = () => {
-    setIsLoginFlow(false);
-    setIsResetFlow(true);
-    transitionToPage(3);
+    performStartForgotPasswordFlow(phone, setIsLoginFlow, setIsResetFlow, setLoading, transitionToPage);
   };
 
   const clearPhoneError = () => {
@@ -434,6 +592,7 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
     loading,
     timerSeconds,
     passwordSecureLevel,
+    organizations,
     selectedOrg,
     setSelectedOrg,
     isLoginFlow,

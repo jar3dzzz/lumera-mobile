@@ -14,7 +14,7 @@ import {
 import styles from './LoginView.styles';
 import LoginFormComponent from '../../components/Forms/LoginFormComponent/LoginFormComponent';
 import SignInFormComponent from '../../components/Forms/SignInFormComponent/SignInFormComponent';
-import { LogInInterface, SignInInterface } from '../../interfaces/AuthInterfaces';
+import { Auth } from '../../interfaces/AuthInterfaces';
 import imageBackground from '../../../assets/backgrounds/login-background.png';
 import lumeraLogo from '../../../assets/logo/logo-completo-blanco.png';
 import { supabase } from '../../lib/supabase';
@@ -22,7 +22,7 @@ export default function AuthView({ navigation }: any) {
   const { height } = useWindowDimensions();
   const [isLogin, setIsLogin] = useState(true);
 
-  const handleLoginSubmit = async (data: LogInInterface) => {
+  const handleLoginSubmit = async (data: Auth.LogInInterface) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         phone: data.phone,
@@ -36,7 +36,7 @@ export default function AuthView({ navigation }: any) {
     }
   };
 
-  const handleRegisterSubmit = async (data: SignInInterface) => {
+  const handleRegisterSubmit = async (data: Auth.SignInInterface) => {
     try {
       const { error } = await supabase.auth.signUp({
         phone: data.phone,
@@ -106,7 +106,10 @@ export default function AuthView({ navigation }: any) {
                       </>
                     )}
                   </View>
+
+
                 </View>
+                <Text onPress={() => setIsLogin(!isLogin)} style={{ textAlign: 'center' }}>crear cuenta</Text>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>

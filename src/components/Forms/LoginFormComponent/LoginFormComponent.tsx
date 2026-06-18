@@ -9,18 +9,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { loginFormStyles } from './loginFormStyles';
-import { LogInInterface } from '../../../interfaces/AuthInterfaces';
+import { Auth } from '../../../interfaces/AuthInterfaces';
 import { theme } from '../../../styles/theme';
 import {
   PAGE_LABELS,
-  getStrengthLabelAndColor,
-  maskPhone,
-  sanitizeOtpInput,
   useLoginFormLogic,
 } from './LoginFormComponentLogic';
+import { maskPhone } from '../../../utils/phoneUtils';
+import { getStrengthLabelAndColor } from '../../../utils/passwordUtils';
+import { sanitizeOtpInput } from '../../../utils/validationUtils';
 
 interface LoginFormComponentProps {
-  onSubmit: (data: LogInInterface) => Promise<void> | void;
+  onSubmit: (data: Auth.LogInInterface) => Promise<void> | void;
   onToggleForm: () => void;
 }
 
@@ -46,6 +46,7 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
     loading,
     timerSeconds,
     passwordSecureLevel,
+    organizations,
     selectedOrg,
     setSelectedOrg,
     isLoginFlow,
@@ -364,17 +365,24 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
             </View>
 
             <TouchableOpacity
-              style={loginFormStyles.submitButton}
+              style={[loginFormStyles.submitButton, loading && { opacity: 0.7 }]}
               onPress={handleP4Verify}
               activeOpacity={0.8}
+              disabled={loading}
             >
-              <Text style={loginFormStyles.submitButtonText}>Verificar</Text>
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color="#ffffff"
-                style={loginFormStyles.buttonArrow}
-              />
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={loginFormStyles.submitButtonText}>Verificar</Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color="#ffffff"
+                    style={loginFormStyles.buttonArrow}
+                  />
+                </>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => transitionToPage(5)} activeOpacity={0.7}>
@@ -518,19 +526,26 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
             </View>
 
             <TouchableOpacity
-              style={loginFormStyles.submitButton}
+              style={[loginFormStyles.submitButton, loading && { opacity: 0.7 }]}
               onPress={handleP5Submit}
               activeOpacity={0.8}
+              disabled={loading}
             >
-              <Text style={loginFormStyles.submitButtonText}>
-                {isResetFlow ? 'Restablecer contraseña' : 'Crear cuenta'}
-              </Text>
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color="#ffffff"
-                style={loginFormStyles.buttonArrow}
-              />
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={loginFormStyles.submitButtonText}>
+                    {isResetFlow ? 'Restablecer contraseña' : 'Crear cuenta'}
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color="#ffffff"
+                    style={loginFormStyles.buttonArrow}
+                  />
+                </>
+              )}
             </TouchableOpacity>
           </>
         );
@@ -592,62 +607,30 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
               Tienes acceso a varias. Selecciona con cuál quieres entrar.
             </Text>
 
-            <TouchableOpacity
-              style={[
-                loginFormStyles.supportCard,
-                selectedOrg === 'amanecer' && loginFormStyles.supportCardSelected,
-              ]}
-              onPress={() => setSelectedOrg('amanecer')}
-              activeOpacity={0.7}
-            >
-              <View style={loginFormStyles.supportCardContent}>
-                <Text style={loginFormStyles.supportCardTitle}>Rancho El Amanecer</Text>
-                <Text style={loginFormStyles.supportCardSubtitle}>Administrador</Text>
-              </View>
-              {selectedOrg === 'amanecer' ? (
-                <Ionicons name="checkmark-circle" size={22} color={theme.colors.brightFern} />
-              ) : (
-                <Ionicons name="ellipse-outline" size={22} color="rgba(255,255,255,0.3)" />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                loginFormStyles.supportCard,
-                selectedOrg === 'robles' && loginFormStyles.supportCardSelected,
-              ]}
-              onPress={() => setSelectedOrg('robles')}
-              activeOpacity={0.7}
-            >
-              <View style={loginFormStyles.supportCardContent}>
-                <Text style={loginFormStyles.supportCardTitle}>Ganadera Los Robles</Text>
-                <Text style={loginFormStyles.supportCardSubtitle}>Supervisor</Text>
-              </View>
-              {selectedOrg === 'robles' ? (
-                <Ionicons name="checkmark-circle" size={22} color={theme.colors.brightFern} />
-              ) : (
-                <Ionicons name="ellipse-outline" size={22} color="rgba(255,255,255,0.3)" />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                loginFormStyles.supportCard,
-                selectedOrg === 'isidro' && loginFormStyles.supportCardSelected,
-              ]}
-              onPress={() => setSelectedOrg('isidro')}
-              activeOpacity={0.7}
-            >
-              <View style={loginFormStyles.supportCardContent}>
-                <Text style={loginFormStyles.supportCardTitle}>Unidad San Isidro</Text>
-                <Text style={loginFormStyles.supportCardSubtitle}>Trabajador</Text>
-              </View>
-              {selectedOrg === 'isidro' ? (
-                <Ionicons name="checkmark-circle" size={22} color={theme.colors.brightFern} />
-              ) : (
-                <Ionicons name="ellipse-outline" size={22} color="rgba(255,255,255,0.3)" />
-              )}
-            </TouchableOpacity>
+            {organizations.map((org) => {
+              const isSelected = selectedOrg === org.org_id;
+              return (
+                <TouchableOpacity
+                  key={org.org_id}
+                  style={[
+                    loginFormStyles.supportCard,
+                    isSelected && loginFormStyles.supportCardSelected,
+                  ]}
+                  onPress={() => setSelectedOrg(org.org_id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={loginFormStyles.supportCardContent}>
+                    <Text style={loginFormStyles.supportCardTitle}>{org.org_name}</Text>
+                    <Text style={loginFormStyles.supportCardSubtitle}>{org.role}</Text>
+                  </View>
+                  {isSelected ? (
+                    <Ionicons name="checkmark-circle" size={22} color={theme.colors.brightFern} />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={22} color="rgba(255,255,255,0.3)" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
 
             <TouchableOpacity
               style={[loginFormStyles.submitButton, loading && { opacity: 0.7 }]}
