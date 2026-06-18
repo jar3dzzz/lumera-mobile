@@ -451,4 +451,67 @@ export default StyleSheet.create({
     marginTop: 2,
     fontWeight: 'bold',
   },
+  puCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    width: '100%',
+  },
+  puCardSelected: {
+    backgroundColor: 'rgba(76, 217, 100, 0.12)',
+    borderColor: '#4cd964',
+    borderWidth: 1.5,
+  },
+  puCardContent: {
+    flex: 1,
+  },
+  puCardTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  puCardSubtitle: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  loadingContainer: {
+    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#ffffff',
+    fontSize: 14,
+  },
+  errorContainer: {
+    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#d9ab55',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#111214',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
 });

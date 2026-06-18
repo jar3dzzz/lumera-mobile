@@ -8,6 +8,7 @@ import { calculatePasswordSecureLevel } from '../../../utils/passwordUtils';
 import { maskPhone, sanitizePhoneDigits, validatePhone } from '../../../utils/phoneUtils';
 import { SupportContactType, getSupportContactAlert } from '../../../utils/supportUtils';
 import { getOtpNextPage, sanitizeOtpInput, validateLoginPassword, validateNewPasswordForm, validateOtpCode } from '../../../utils/validationUtils';
+import { useRancho } from '../../../context/RanchoContext';
 
 // Page index mapping:
 // 0 = P1: Phone entry
@@ -349,12 +350,23 @@ interface UseLoginFormLogicParams {
 }
 
 export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
-  const [page, setPage] = useState<LoginPage>(0);
-  const [pageHistory, setPageHistory] = useState<LoginPage[]>([]);
+  const {
+    selectedOrgId: selectedOrg,
+    setSelectedOrgId: setSelectedOrg,
+    organizations,
+    setOrganizations,
+    phone,
+    setPhone,
+    password,
+    setPassword,
+    loginPage: page,
+    setLoginPage: setPage,
+    loginPageHistory: pageHistory,
+    setLoginPageHistory: setPageHistory,
+  } = useRancho();
+
   const [isResetFlow, setIsResetFlow] = useState(false);
 
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -366,8 +378,6 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
 
   const [timerSeconds, setTimerSeconds] = useState(OTP_TIMER_SECONDS);
   const [passwordSecureLevel, setPasswordSecureLevel] = useState(0);
-  const [organizations, setOrganizations] = useState<Core.Organization[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<string>('');
   const [isLoginFlow, setIsLoginFlow] = useState(true);
 
   const [phoneError, setPhoneError] = useState('');
@@ -400,6 +410,12 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
   useEffect(() => {
     setPasswordSecureLevel(calculatePasswordSecureLevel(newPassword));
   }, [newPassword]);
+
+  useEffect(() => {
+    if (page === 6) {
+      performLoadUserOrganizations(setOrganizations, setSelectedOrg, setLoading);
+    }
+  }, [page]);
 
   const resetOtherPagesState = (nextPage: number) => {
     if (nextPage !== 0) {
@@ -452,11 +468,6 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
       resetOtherPagesState(nextPage);
       setPage(nextPage as LoginPage);
       slideAnim.setValue(isForward ? 20 : -20);
-
-      // Trigger organization loading if going to page 6
-      if (nextPage === 6) {
-        performLoadUserOrganizations(setOrganizations, setSelectedOrg, setLoading);
-      }
 
       Animated.parallel([
         Animated.timing(fadeAnim, {
