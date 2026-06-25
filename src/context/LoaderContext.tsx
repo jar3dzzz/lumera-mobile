@@ -40,18 +40,38 @@ export async function withLoader<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+interface LoaderContextType {
+  appLoading: boolean;
+  setAppLoading: (loading: boolean) => void;
+}
+
+const LoaderContext = React.createContext<LoaderContextType>({
+  appLoading: false,
+  setAppLoading: () => {},
+});
+
+export const useLoader = () => React.useContext(LoaderContext);
+
 export const LoaderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [appLoading, setAppLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = globalLoader.subscribe(setIsLoading);
+    const unsubscribe = globalLoader.subscribe(setAppLoading);
     return unsubscribe;
   }, []);
 
+  const handleSetAppLoading = (loading: boolean) => {
+    if (loading) {
+      globalLoader.show();
+    } else {
+      globalLoader.hide();
+    }
+  };
+
   return (
-    <>
+    <LoaderContext.Provider value={{ appLoading, setAppLoading: handleSetAppLoading }}>
       {children}
-      {isLoading && (
+      {appLoading && (
         <Modal transparent animationType="fade">
           <View style={styles.overlay}>
             <View style={styles.loaderContainer}>
@@ -61,7 +81,7 @@ export const LoaderProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           </View>
         </Modal>
       )}
-    </>
+    </LoaderContext.Provider>
   );
 };
 

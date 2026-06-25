@@ -9,6 +9,7 @@ import { maskPhone, sanitizePhoneDigits, validatePhone } from '../../../utils/ph
 import { SupportContactType, getSupportContactAlert } from '../../../utils/supportUtils';
 import { getOtpNextPage, sanitizeOtpInput, validateLoginPassword, validateNewPasswordForm, validateOtpCode } from '../../../utils/validationUtils';
 import { useRancho } from '../../../context/RanchoContext';
+import { useLoader } from '../../../context/LoaderContext';
 
 // Page index mapping:
 // 0 = P1: Phone entry
@@ -43,9 +44,9 @@ function getApiErrorMessage(err: any, fallback: string): string {
 export async function performLoadUserOrganizations(
   setOrganizations: (orgs: Core.Organization[]) => void,
   setSelectedOrg: (orgId: string) => void,
-  setLoading: (loading: boolean) => void
+  setAppLoading: (loading: boolean) => void
 ) {
-  setLoading(true);
+  setAppLoading(true);
   try {
     // REAL API CALL:
     // const response = await coreService.getUserOrganizations();
@@ -65,7 +66,7 @@ export async function performLoadUserOrganizations(
   } catch (err: any) {
     Alert.alert('Error', err.message || 'Error al obtener organizaciones');
   } finally {
-    setLoading(false);
+    setAppLoading(false);
   }
 }
 
@@ -365,6 +366,8 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
     setLoginPageHistory: setPageHistory,
   } = useRancho();
 
+  const { appLoading, setAppLoading } = useLoader();
+
   const [isResetFlow, setIsResetFlow] = useState(false);
 
   const [newPassword, setNewPassword] = useState('');
@@ -413,7 +416,7 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
 
   useEffect(() => {
     if (page === 6) {
-      performLoadUserOrganizations(setOrganizations, setSelectedOrg, setLoading);
+      performLoadUserOrganizations(setOrganizations, setSelectedOrg, setAppLoading);
     }
   }, [page]);
 
@@ -601,6 +604,7 @@ export function useLoginFormLogic({ onSubmit }: UseLoginFormLogicParams) {
     showConfirmPassword,
     setShowConfirmPassword,
     loading,
+    appLoading,
     timerSeconds,
     passwordSecureLevel,
     organizations,

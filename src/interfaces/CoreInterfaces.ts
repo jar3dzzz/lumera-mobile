@@ -1,3 +1,10 @@
+
+export type AnimalSex = 'MALE' | 'FEMALE' | string;
+export type AnimalStatus = 'ACTIVE' | 'SOLD' | 'DEAD' | string;
+export type AnimalOrigin = 'BORN_ON_FARM' | 'PURCHASED' | string;
+export type AnimalType = 'VACA' | 'BECERRO' | 'TORO' | string;
+export type OwnershipType = 'OWNED' | 'LEASED' | string;
+
 export namespace Core {
   export interface Organization {
     org_id: string;
@@ -40,6 +47,10 @@ export namespace Core {
     address: Address;
   }
 
+  export interface Animals {
+    animals: Animal[];
+  }
+
   export interface Location {
     location_id: string;
     name: string;
@@ -57,21 +68,23 @@ export namespace Core {
     species_id?: string;
   }
 
-  export interface Animal {
-    id: string;
-    tag_number: string; // caravana/arete
-    name?: string;
-    species_id: string;
-    breed_id: string;
-    production_unit_id: string;
-    location_id?: string;
-    status: 'active' | 'sold' | 'deceased' | 'quarantine' | string;
-    birth_date?: string;
-    gender: 'M' | 'F';
-    weight?: number;
-    created_at: string;
-    updated_at: string;
-  }
+  //sujeto a cambios, los tipos no son definitivos
+export interface Animal {
+  id: number; // uuid
+  nombre: string,
+  edad: number,
+  animalType: AnimalType
+  Color: string
+  Pierna1: string
+  Pieran2:String
+  Serie1: string
+  Serie2:String
+  Arete:String
+  fechaNacimiento: string
+  created_by: string; // uuid
+  created_at: string; // timestamptz
+  updated_at: string; // timestamptz
+}
 
   export interface AnimalCreateInput {
     tag_number: string;
