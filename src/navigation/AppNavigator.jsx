@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthProvider';
 import AuthView from '../views/AuthView/AuthView';
 import HomeView from '../views/HomeView/HomeView';
+import AnimalsView from '../views/AnimalsView/AnimalsView';
 
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -46,6 +47,7 @@ function AppNavigatorStack() {
       }}
     >
       <AppStack.Screen name="Home" component={HomeView} />
+      <AppStack.Screen name="Animals" component={AnimalsView} />
     </AppStack.Navigator>
   );
 }

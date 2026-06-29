@@ -44,6 +44,7 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
     showConfirmPassword,
     setShowConfirmPassword,
     loading,
+    appLoading,
     timerSeconds,
     passwordSecureLevel,
     organizations,
@@ -601,10 +602,12 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
       case 6: // P7: Choose organization
         return (
           <>
-            <Text style={loginFormStyles.title}>Elige tu organización</Text>
+            <Text style={loginFormStyles.title}>¿A cuál rancho vas a entrar hoy?</Text>
             {renderBackLink()}
             <Text style={loginFormStyles.subtitle}>
-              Tienes acceso a varias. Selecciona con cuál quieres entrar.
+              {organizations.length === 0 && !appLoading
+                ? 'Aun no registras ningun rancho'
+                : 'Toca el rancho con el que quieres trabajar. Puedes cambiarlo cuando quieras.'}
             </Text>
 
             {organizations.map((org) => {
@@ -633,10 +636,13 @@ export default function LoginFormComponent({ onSubmit, onToggleForm }: LoginForm
             })}
 
             <TouchableOpacity
-              style={[loginFormStyles.submitButton, loading && { opacity: 0.7 }]}
+              style={[
+                loginFormStyles.submitButton,
+                (loading || appLoading || organizations.length === 0) && { opacity: 0.7 }
+              ]}
               onPress={handleOrgSubmit}
               activeOpacity={0.8}
-              disabled={loading}
+              disabled={loading || appLoading || organizations.length === 0}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
