@@ -18,9 +18,13 @@ import { Auth } from '../../interfaces/AuthInterfaces';
 import imageBackground from '../../../assets/backgrounds/login-background.png';
 import lumeraLogo from '../../../assets/logo/logo-completo-blanco.png';
 import { supabase } from '../../lib/supabase';
+import { useRancho } from '../../context/RanchoContext';
+import { authService } from '../../services/AuthServices/AuthService';
+
 export default function AuthView({ navigation }: any) {
   const { height } = useWindowDimensions();
   const [isLogin, setIsLogin] = useState(true);
+  const { setPhone, setLoginPage, setLoginPageHistory } = useRancho();
 
   const handleLoginSubmit = async (data: Auth.LogInInterface) => {
     try {
@@ -38,7 +42,16 @@ export default function AuthView({ navigation }: any) {
 
   const handleRegisterSubmit = async (data: Auth.SignInInterface) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      // 1. Call standard api mock registration client
+      await authService.register({
+        first_name: data.first_name,
+        last_name: `${data.paternal_last_name || ''} ${data.maternal_last_name || ''}`.trim() || 'Demo',
+        email: data.email,
+        phone: data.phone,
+      });
+
+      // 2. Call supabase client signup (returns session: null in mock now)
+      await supabase.auth.signUp({
         phone: data.phone,
         password: '',
         options: {
@@ -49,9 +62,17 @@ export default function AuthView({ navigation }: any) {
           }
         }
       });
-      if (error) {
-        Alert.alert('Error', error.message);
-      }
+
+      // 3. Pre-fill state & transition login wizard to OTP page
+      setPhone(data.phone);
+      setLoginPageHistory([0]); // Allow going back to phone input page
+      setLoginPage(3); // P4: Verify code page index
+      setIsLogin(true); // Toggle card view to login (wizard) component
+
+      Alert.alert(
+        'Registro exitoso',
+        'Se ha enviado un código de verificación a tu número.'
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Error al registrarse');
     }

@@ -108,26 +108,20 @@ if (USE_MOCK) {
     },
 
     async signUp({ phone, password, options }) {
-      console.log('[Supabase Mock] signUp called', { phone, options });
+      console.log('[Supabase Mock] signUp called (phone-first confirmation pending)', { phone, options });
       const metadata = options?.data || {};
-      const session = {
-        access_token: 'mock-jwt-token-sprint2',
-        token_type: 'bearer',
-        expires_in: 3600,
-        refresh_token: 'mock-refresh-token',
-        user: {
-          id: 'mock-user-123',
-          email: metadata.email || 'demo@lumera.mx',
-          phone: phone || '+525512345678',
-          user_metadata: {
-            first_name: metadata.first_name || 'Administrador',
-            last_name: metadata.last_name || 'Demo',
-          },
+      const user = {
+        id: 'mock-user-123',
+        email: metadata.email || 'demo@lumera.mx',
+        phone: phone || '+525512345678',
+        user_metadata: {
+          first_name: metadata.first_name || 'Administrador',
+          last_name: metadata.last_name || 'Demo',
         },
       };
-      await saveSession(session);
-      listeners.forEach((cb) => cb('SIGNED_IN', session));
-      return { data: { session }, error: null };
+      // For phone-first registration with later OTP/password setup,
+      // no session is returned immediately.
+      return { data: { user, session: null }, error: null };
     },
 
     async signOut() {

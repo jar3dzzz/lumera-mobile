@@ -34,74 +34,19 @@ const createMockError = (code: string, message: string, details: any[] = []) => 
 
 export const authService = {
   checkPhoneExistence: (phone: string): Promise<AxiosResponse<Auth.CheckPhoneResponse>> =>
-    withLoader(async () => {
-      // unavailable db temporarily
-      await delay(800);
-      const isRegistered = phone === '+529931745618';
-      
-      return createMockResponse({
-        state: isRegistered ? 'registered' : 'not_found', 
-        nextAction: isRegistered ? 'enter_password' : 'verify_code', 
-        phone: phone,
-        maskedPhone: '***' + phone.slice(-4),
-        devVerificationCode: '123456',
-        expiresAt: new Date(Date.now() + 10 * 60000).toISOString(),
-      });
-    }),
+    withLoader(() => apiClient.post('/auth/check-phone', { phone })),
 
   verifyCode: (phone: string, code: string): Promise<AxiosResponse<Auth.VerifyCodeResponse>> =>
-    withLoader(async () => {
-      // unavailable db temporarily
-      await delay(800);
-      if (code !== '123456') {
-        return createMockError('VALIDATION_ERROR', 'Validation failed.', [
-          { field: 'code', reason: 'Must be valid OTP code.' }
-        ]);
-      }
-
-      return createMockResponse({
-        phoneVerified: true,
-        passwordRequired: true,
-        nextAction: 'set_password'
-      });
-    }),
+    withLoader(() => apiClient.post('/auth/verify-code', { phone, code })),
 
   setPassword: (phone: string, code: string, password: string): Promise<AxiosResponse<Auth.SetPasswordResponse>> =>
-    withLoader(async () => {
-      await delay(800);
-      return createMockResponse({
-        user: {
-          id: 'mock-user-id',
-          phone,
-          phoneVerified: true,
-          passwordConfigured: true,
-          status: 'active'
-        },
-        nextAction: 'login'
-      });
-    }),
+    withLoader(() => apiClient.post('/auth/set-password', { phone, code, password })),
 
   passwordLogin: (phone: string, password: string): Promise<AxiosResponse<Auth.LoginResponse>> =>
-    withLoader(async () => {
-      // unavailable db temporarily
-      await delay(800);
-      if (password !== 'Contrasena2006.') {
-        return createMockError('INVALID_CREDENTIALS', 'Contraseña incorrecta (MOCK).', []);
-      }
+    withLoader(() => apiClient.post('/auth/login', { phone, password })),
 
-      return createMockResponse({
-        accessToken: 'mock-access-token',
-        tokenType: 'bearer',
-        expiresAt: new Date(Date.now() + 12 * 3600000).toISOString(),
-        user: {
-          id: 'mock-user-id',
-          phone,
-          phoneVerified: true,
-          passwordConfigured: true,
-          status: 'active'
-        }
-      });
-    }),
+  me: (): Promise<AxiosResponse<any>> =>
+    withLoader(() => apiClient.get('/auth/me')),
 
   signIn: (email: string, display_name: string, first_name: string, paternal_last_name_string: string, maternal_last_name: string, phone: string, status: Auth.ProfileStatus): Promise<AxiosResponse<Auth.SignInInterface>> =>
     withLoader(async () => {
