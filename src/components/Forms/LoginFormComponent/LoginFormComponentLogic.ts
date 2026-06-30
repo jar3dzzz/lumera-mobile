@@ -90,7 +90,11 @@ export async function performP1Continue(
 
   try {
     const response = await authService.checkPhoneExistence(phone);
-    const { state, nextAction, phone: normalizedPhone } = response.data;
+    const { state, nextAction, phone: normalizedPhone, devVerificationCode } = response.data;
+
+    if (devVerificationCode) {
+      console.log('[Dev OTP Code]:', devVerificationCode);
+    }
 
     if (normalizedPhone) {
       setPhone(normalizedPhone);
@@ -135,11 +139,6 @@ export async function performP3Submit(
     return;
   }
 
-  if (password !== 'Contrasena2006.') {
-    setPasswordError('Contraseña incorrecta (MOCK). Usa Contrasena2006.');
-    return;
-  }
-
   setPasswordError('');
   setLoading(true);
 
@@ -166,11 +165,6 @@ export async function performP4Verify(
   const otpValidation = validateOtpCode(otpCode);
   if (!otpValidation.isValid) {
     setOtpError(otpValidation.error);
-    return;
-  }
-
-  if (otpCode !== '123456') {
-    setOtpError('Código incorrecto (MOCK). Usa 123456');
     return;
   }
 
@@ -289,7 +283,11 @@ export async function performResendOtp(
 ) {
   setLoading(true);
   try {
-    await authService.checkPhoneExistence(phone);
+    const response = await authService.checkPhoneExistence(phone);
+    const { devVerificationCode } = response.data;
+    if (devVerificationCode) {
+      console.log('[Dev OTP Code (Resend)]:', devVerificationCode);
+    }
 
     setTimerSeconds(OTP_TIMER_SECONDS);
     Alert.alert('Reenviado', 'Se ha reenviado un nuevo código a tu número.');
